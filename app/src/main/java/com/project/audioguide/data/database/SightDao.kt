@@ -17,7 +17,4 @@ interface SightDao {
 
     @Query("DELETE FROM sights")
     suspend fun deleteAll()
-
-    @Query("DELETE FROM sqlite_sequence WHERE name = 'sights'")  // ← Добавь
-    suspend fun resetSequence()
 }

@@ -6,10 +6,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.project.audioguide.databinding.ActivityMainBinding
 import com.project.audioguide.ui.main.MainViewModel
+import com.project.audioguide.data.database.DatabaseInitializer
 import dagger.hilt.android.AndroidEntryPoint
-import com.project.audioguide.data.database.SightDatabase
-import com.project.audioguide.data.database.sights
-import android.util.Log
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -24,14 +22,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val initializer = DatabaseInitializer(applicationContext)
         lifecycleScope.launch {
-            val dao = SightDatabase.getInstance(applicationContext).sightDao()
-            dao.deleteAll()
-//            dao.resetSequence()
-            dao.insertAll(sights)
-            val all = dao.getAll()
-            Log.d("DB", "Записей: ${all.size}")
-            all.forEach { Log.d("DB", "${it.name}: ${it.location.latitude} ${it.location.longitude}")}
+            initializer.initialize()
         }
     }
 }

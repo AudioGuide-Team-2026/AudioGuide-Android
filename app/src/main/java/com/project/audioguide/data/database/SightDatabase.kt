@@ -1,6 +1,8 @@
 package com.project.audioguide.data.database
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
@@ -17,16 +19,21 @@ abstract class SightDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: SightDatabase? = null
 
-        fun getInstance(context: android.content.Context): SightDatabase {
+        fun getInstance(context: Context): SightDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = androidx.room.Room.databaseBuilder(
+                Room.inMemoryDatabaseBuilder(
                     context.applicationContext,
-                    SightDatabase::class.java,
-                    "sight_database"
-                ).build()
-                INSTANCE = instance
-                instance
+                    SightDatabase::class.java
+                )
+                    .build()
+                    .also { INSTANCE = it }
             }
+        }
+
+        @Synchronized
+        fun reset() {
+            INSTANCE?.close()
+            INSTANCE = null
         }
     }
 }
