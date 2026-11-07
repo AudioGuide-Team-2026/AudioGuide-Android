@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.core.ktx)
     implementation(libs.material)
+    implementation(libs.play.services.location)
 
     // DI - Hilt
     implementation("com.google.dagger:hilt-android:2.60.1")
