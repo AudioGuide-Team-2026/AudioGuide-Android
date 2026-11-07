@@ -7,11 +7,14 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.project.audioguide.data.CompassService
 import com.project.audioguide.data.LocationService
 import com.project.audioguide.databinding.ActivityMainBinding
 import com.project.audioguide.ui.main.MainViewModel
+import com.project.audioguide.data.database.DatabaseInitializer
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -46,6 +49,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val initializer = DatabaseInitializer(applicationContext)
+        lifecycleScope.launch {
+            initializer.initialize()
+        }
 
         locationService = LocationService(this)
         compassService = CompassService(this)
