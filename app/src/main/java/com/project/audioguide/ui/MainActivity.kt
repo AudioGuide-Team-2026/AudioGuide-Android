@@ -61,6 +61,11 @@ class MainActivity : AppCompatActivity() {
         if (!locationService.hasPermission()) {
             requestPermissionLauncher.launch(locationService.requiredPermissions())
         }
+
+        binding.btnReloadData.setOnClickListener {
+            viewModel.reloadSightsFromSource()
+            Toast.makeText(this, "Данные обновлены", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onResume() {
