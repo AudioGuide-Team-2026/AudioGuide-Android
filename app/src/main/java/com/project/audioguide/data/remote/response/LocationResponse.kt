@@ -1,4 +1,6 @@
 package com.project.audioguide.data.remote.response
 
-class LocationResponse {
-}
+data class LocationResponse(
+    val latitude: Double,
+    val longitude: Double
+)
