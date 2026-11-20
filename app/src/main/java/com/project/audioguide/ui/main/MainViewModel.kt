@@ -25,6 +25,18 @@ class MainViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(arrowAngle = newAngle)
     }
 
+    fun loadInitialData() {
+        viewModelScope.launch {
+            repository.loadInitialData()
+        }
+    }
+    // обновляем метод для загрузки с сервера
+    fun reloadSightsFromServer() {
+        viewModelScope.launch {
+            repository.refreshFromServer()
+        }
+    }
+
     fun reloadSightsFromSource() {
         viewModelScope.launch {
             repository.replaceAll(sights)          // Запись в базу данных
