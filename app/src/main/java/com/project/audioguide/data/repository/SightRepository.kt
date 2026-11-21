@@ -30,13 +30,13 @@ class SightRepository @Inject constructor(private val dao: SightDao, private val
             val entities = remoteSights.map { response ->
                 SightEntity(
                     sightId = 0,
-                    address = "test",
+                    address = response.address,
                     location = Location(
-                        latitude = response.latitude,
-                        longitude = response.longitude
+                        latitude = response.location.latitude,
+                        longitude = response.location.longitude
                     ),
                     name = response.name,
-                    description = response.description.orEmpty()
+                    description = response.description
                 )
             }
             dao.replaceAll(entities)
