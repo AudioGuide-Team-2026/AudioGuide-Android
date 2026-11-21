@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.project.audioguide.data.database.sights // Импорт файла с достопримечательностями
 import com.project.audioguide.data.repository.SightRepository // Импорт репозитория
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,13 +28,35 @@ class MainViewModel @Inject constructor(
 
     fun loadInitialData() {
         viewModelScope.launch {
-            repository.loadInitialData()
+            try {
+                repository.loadInitialData()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Ошибки при начальной загрузке — игнорируем, данные уже есть или нет
+            }
         }
     }
+
     // обновляем метод для загрузки с сервера
     fun reloadSightsFromServer() {
         viewModelScope.launch {
-            repository.refreshFromServer()
+            _uiState.value = _uiState.value.copy(isLoading = true, message = "")
+            try {
+                repository.refreshFromServer()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    message = "Данные обновлены"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Сохраняем имеющийся кэш, показываем ошибку
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    message = "Ошибка обновления: ${e.message}"
+                )
+            }
         }
     }
 

@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // изначальнаязагрузка данных из файла sights.kt
+        // изначальная загрузка данных из файла sights.kt
         lifecycleScope.launch {
             viewModel.loadInitialData()
         }
@@ -69,7 +69,7 @@ class MainActivity : AppCompatActivity() {
         }
         // при нажатии на кнопку в бд загружаются данные с сервера
         binding.btnReloadData.setOnClickListener {
-            viewModel.reloadSightsFromSource()
+            viewModel.reloadSightsFromServer()
             Toast.makeText(this, "Данные обновлены", Toast.LENGTH_SHORT).show()
         }
     }

@@ -62,12 +62,18 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     // Network - Retrofit
-    val retrofitVersion = "3.0.0" // или "2.12.0", выбери, что хочешь
+    val retrofitVersion = "3.0.0"
     implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
     implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
 
+    // OkHttp Logging Interceptor
+    val okhttpVersion = "4.12.0"
+    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
+    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
+
     // XML - Markwon (Markdown)
     implementation("io.noties.markwon:core:4.6.2")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Tests
     testImplementation(libs.junit)
