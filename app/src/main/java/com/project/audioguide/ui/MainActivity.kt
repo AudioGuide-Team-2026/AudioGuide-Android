@@ -22,9 +22,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    // Hilt provides the viewModel
     private val viewModel: MainViewModel by viewModels()
-
     private lateinit var binding: ActivityMainBinding
 
     // --- Сервисы ---
@@ -41,11 +39,7 @@ class MainActivity : AppCompatActivity() {
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
-        if (granted) {
-            Log.d(tag, "Разрешение на GPS получено")
-            // GPS запустится сам в onResume
-        } else {
-            Log.e(tag, "Разрешение на GPS отклонено")
+        if (!granted) {
             Toast.makeText(this, "GPS недоступен без разрешения", Toast.LENGTH_SHORT).show()
         }
     }
@@ -80,25 +74,31 @@ class MainActivity : AppCompatActivity() {
         // Включаем компас при возвращении на экран
         compassService.start { azimuth ->
             Log.d(tag, "Компас: %.1f°".format(azimuth))
+        // Запрашиваем разрешения, если их нет
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ))
         }
 
-        // Включаем GPS, если есть разрешение
-        if (locationService.hasPermission()) {
-            locationService.startLocationUpdates(
-                onLocation = { location ->
-                    Log.d(tag, "GPS: lat=${location.latitude}, lon=${location.longitude}, acc=${location.accuracy}м")
-                },
-                onError = { e ->
-                    Log.e(tag, "Ошибка GPS: ${e.message}")
+        // СЛУШАЕМ ЧТО НАСЧИТАЛ VIEWMODEL И ПОКАЗЫВАЕМ НА ЭКРАНЕ
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.uiState.collect { state ->
+                    // Выводим статус (Поиск... / Ничего нет / Рядом есть...)
+                    binding.tvInfo.text = state.statusMessage
+                    
+                    // Если нашли объект, добавляем его описание
+                    state.detectedSight?.let { sight ->
+                        binding.tvInfo.append("\n\n${sight.description}")
+                    }
                 }
-            )
+            }
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        // Обязательно отключаем компас и GPS в фоне для экономии батареи
-        compassService.stop()
-        locationService.stopLocationUpdates()
+    override fun onResume() {
+        super.onResume()
     }
 }
