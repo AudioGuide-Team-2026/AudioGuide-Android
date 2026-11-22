@@ -4,12 +4,14 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project.audioguide.data.database.sights // Импорт файла с достопримечательностями
+import com.project.audioguide.data.repository.SightRepository // Импорт репозитория
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import com.project.audioguide.data.database.SightEntity
-import com.project.audioguide.data.repository.SightRepository // Добавили
 import com.project.audioguide.domain.SightDetector // Добавили
 import com.project.audioguide.domain.service.CompassService
 import com.project.audioguide.domain.service.LocationService
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -135,6 +137,46 @@ class MainViewModel @Inject constructor(
                 statusMessage = "Рядом: ${nearestSight.name}. Повернитесь к нему!",
                 detectedSight = null
             )
+        }
+    }
+
+    fun loadInitialData() {
+        viewModelScope.launch {
+            try {
+                repository.loadInitialData()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Ошибки при начальной загрузке — игнорируем, данные уже есть или нет
+            }
+        }
+    }
+
+    // обновляем метод для загрузки с сервера
+    fun reloadSightsFromServer() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, message = "")
+            try {
+                repository.refreshFromServer()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    message = "Данные обновлены"
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Сохраняем имеющийся кэш, показываем ошибку
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    message = "Ошибка обновления: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun reloadSightsFromSource() {
+        viewModelScope.launch {
+            repository.replaceAll(sights)          // Запись в базу данных
         }
     }
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import com.project.audioguide.data.database.SightDao
 import com.project.audioguide.data.database.SightDatabase
+import com.project.audioguide.data.remote.ApiFactory
+import com.project.audioguide.data.remote.ApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,5 +32,12 @@ object DatabaseModule {
     @Provides
     fun provideSightDao(database: SightDatabase): SightDao {
         return database.sightDao() // Убедись, что в SightDatabase есть метод sightDao()
+    }
+
+    // 3. Говорим Hilt, как создать ApiService
+    @Provides
+    @Singleton
+    fun provideApiService(apiFactory: ApiFactory): ApiService {
+        return apiFactory.sightsApi
     }
 }

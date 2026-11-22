@@ -1,6 +1,7 @@
 package com.project.audioguide.ui
 
 import android.Manifest
+import android.util.Log
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,6 +9,8 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.project.audioguide.data.CompassService
+import com.project.audioguide.data.LocationService
 import androidx.lifecycle.repeatOnLifecycle
 import com.project.audioguide.databinding.ActivityMainBinding
 import com.project.audioguide.ui.main.MainViewModel
@@ -22,6 +25,10 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
 
+    // --- Сервисы ---
+    private lateinit var locationService: LocationService
+    private lateinit var compassService: CompassService
+    private val tag = "MainActivity"
     @Inject
     lateinit var initializer: DatabaseInitializer
 
@@ -42,11 +49,31 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Инициализация базы данных
+        // изначальная загрузка данных из файла sights.kt
         lifecycleScope.launch {
-            initializer.initialize()
+            viewModel.loadInitialData()
         }
 
+        locationService = LocationService(this)
+        compassService = CompassService(this)
+
+        // Проверяем разрешения для GPS при старте
+        if (!locationService.hasPermission()) {
+            requestPermissionLauncher.launch(locationService.requiredPermissions())
+        }
+        // при нажатии на кнопку в бд загружаются данные с сервера
+        binding.btnReloadData.setOnClickListener {
+            viewModel.reloadSightsFromServer()
+            Toast.makeText(this, "Данные обновлены", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // Включаем компас при возвращении на экран
+        compassService.start { azimuth ->
+            Log.d(tag, "Компас: %.1f°".format(azimuth))
         // Запрашиваем разрешения, если их нет
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(arrayOf(
