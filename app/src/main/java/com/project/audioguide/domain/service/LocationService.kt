@@ -1,6 +1,6 @@
 package com.project.audioguide.domain.service
 
-import android.location.Location
+import com.project.audioguide.domain.model.Location
 import kotlinx.coroutines.flow.Flow
 
 interface LocationService {

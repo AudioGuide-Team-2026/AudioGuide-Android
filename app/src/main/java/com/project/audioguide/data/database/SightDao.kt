@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SightDao {
@@ -12,6 +13,9 @@ interface SightDao {
 
     @Insert
     suspend fun insertAll(sights: List<SightEntity>)
+
+    @Query("SELECT * FROM sights")
+    fun observeAll(): Flow<List<SightEntity>>
 
     @Query("SELECT * FROM sights")
     suspend fun getAll(): List<SightEntity>

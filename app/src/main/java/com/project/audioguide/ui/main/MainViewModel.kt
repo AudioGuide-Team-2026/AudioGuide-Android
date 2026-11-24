@@ -1,13 +1,12 @@
 package com.project.audioguide.ui.main
 
-import android.location.Location
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project.audioguide.data.database.SightEntity
-import com.project.audioguide.data.database.sights // Импорт файла с достопримечательностями
-import com.project.audioguide.data.repository.SightRepository // Импорт репозитория
+import com.project.audioguide.domain.DetectionResult
 import com.project.audioguide.domain.SightDetector // Добавили
+import com.project.audioguide.domain.model.Location
+import com.project.audioguide.domain.repository.SightRepository // Импорт интерфейса репозитория из domain
 import com.project.audioguide.domain.service.CompassService
 import com.project.audioguide.domain.service.LocationService
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,25 +27,23 @@ private const val TAG = "MainViewModel"
 class MainViewModel @Inject constructor(
     private val locationService: LocationService,
     private val compassService: CompassService,
-    private val repository: SightRepository // Внедряем репозиторий для БД
+    private val repository: SightRepository, // Внедряем интерфейс репозитория для БД
+    private val detector: SightDetector    // Наш "мозг" для математики (внедряется через Hilt)
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
-    // Наш "мозг" для математики
-    private val detector = SightDetector()
-
     // Текущие данные от датчиков
     private var currentLocation: Location? = null
     private var currentAzimuth: Float = 0f
-
     private var isTrackingStarted = false
 
     init {
         loadInitialData()
     }
 
+    // Запускаем сбор датчиков только после выдачи разрешений GPS
     fun startTracking() {
         if (isTrackingStarted) return
         isTrackingStarted = true
@@ -62,8 +59,8 @@ class MainViewModel @Inject constructor(
                 currentLocation = location // Просто обновляем переменную
             }
             .catch { e ->
-                isTrackingStarted = false
                 Log.e(TAG, "Ошибка GPS", e)
+                isTrackingStarted = false
                 _uiState.value = _uiState.value.copy(
                     statusMessage = "Ошибка GPS: ${e.message}"
                 )
@@ -94,7 +91,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // Твой алгоритм (немного изменен, теперь это suspend-функция)
+    // Алгоритм поиска ближайшего объекта и проверки направления
     private suspend fun checkSurroundings() {
         val location = currentLocation ?: return // Ждем GPS
 
@@ -107,47 +104,29 @@ class MainViewModel @Inject constructor(
             return
         }
 
-        var nearestSight: SightEntity? = null
-        var minDistance = Float.MAX_VALUE
-
-        // 2. Ищем ближайший объект в радиусе 50 метров
-        for (sight in allSights) {
-            val dist = detector.calculateDistance(
-                location.latitude, location.longitude,
-                sight.location.latitude, sight.location.longitude
-            )
-            if (dist <= 50f && dist < minDistance) {
-                nearestSight = sight
-                minDistance = dist
+        // 2-5. Ищем ближайший объект в радиусе 50 метров, проверяем угол и обновляем UI
+        when (val result = detector.detect(location, currentAzimuth, allSights)) {
+            // 3. Если ничего нет рядом
+            DetectionResult.NothingNearby -> {
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = "В радиусе 50 метров ничего нет.",
+                    detectedSight = null
+                )
             }
-        }
-
-        // 3. Если ничего нет рядом
-        if (nearestSight == null) {
-            _uiState.value = _uiState.value.copy(
-                statusMessage = "В радиусе 50 метров ничего нет.",
-                detectedSight = null
-            )
-            return
-        }
-
-        // 4. Проверяем угол
-        val isLooking = detector.isLookingAtSight(
-            location.latitude, location.longitude, currentAzimuth,
-            nearestSight.location.latitude, nearestSight.location.longitude
-        )
-
-        // 5. Обновляем UI
-        if (isLooking) {
-            _uiState.value = _uiState.value.copy(
-                statusMessage = "Вы смотрите на: ${nearestSight.name}",
-                detectedSight = nearestSight
-            )
-        } else {
-            _uiState.value = _uiState.value.copy(
-                statusMessage = "Рядом: ${nearestSight.name}. Повернитесь к нему!",
-                detectedSight = null
-            )
+            // 4. Объект рядом, но смотрим в другую сторону
+            is DetectionResult.NearbyNotLooking -> {
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = "Рядом: ${result.sight.name}. Повернитесь к нему!",
+                    detectedSight = null
+                )
+            }
+            // 5. Смотрим прямо на объект
+            is DetectionResult.LookingAt -> {
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = "Вы смотрите на: ${result.sight.name}",
+                    detectedSight = result.sight
+                )
+            }
         }
     }
 
@@ -166,7 +145,7 @@ class MainViewModel @Inject constructor(
     // обновляем метод для загрузки с сервера
     fun reloadSightsFromServer() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = "Загрузка с сервера...")
+            _uiState.value = _uiState.value.copy(isLoading = true, message = null)
             repository.refreshFromServer()
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
@@ -186,11 +165,5 @@ class MainViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(message = null)
-    }
-
-    fun reloadSightsFromSource() {
-        viewModelScope.launch {
-            repository.replaceAll(sights) // Запись в базу данных
-        }
     }
 }
