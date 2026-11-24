@@ -19,13 +19,9 @@ interface SightDao {
     @Query("DELETE FROM sights")
     suspend fun deleteAll()
 
-    @Query("DELETE FROM sqlite_sequence WHERE name = 'sights'")
-    suspend fun resetSequence()
-
     @Transaction
     suspend fun replaceAll(sights: List<SightEntity>) {
         deleteAll()
-        resetSequence()
         insertAll(sights)
     }
 }

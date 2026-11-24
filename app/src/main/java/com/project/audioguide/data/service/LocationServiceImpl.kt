@@ -29,10 +29,14 @@ class LocationServiceImpl @Inject constructor(
 
     override fun getLocation(): Flow<Location> = callbackFlow {
         // 1. Проверяем разрешения
-        if (ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
+        val hasFine = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasFine && !hasCoarse) {
             close(SecurityException("Нет разрешения на GPS"))
             return@callbackFlow
         }

@@ -73,7 +73,6 @@ dependencies {
 
     // XML - Markwon (Markdown)
     implementation("io.noties.markwon:core:4.6.2")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Tests
     testImplementation(libs.junit)

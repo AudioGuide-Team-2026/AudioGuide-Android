@@ -4,18 +4,19 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project.audioguide.data.database.SightEntity
 import com.project.audioguide.data.database.sights // Импорт файла с достопримечательностями
 import com.project.audioguide.data.repository.SightRepository // Импорт репозитория
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
-import com.project.audioguide.data.database.SightEntity
 import com.project.audioguide.domain.SightDetector // Добавили
 import com.project.audioguide.domain.service.CompassService
 import com.project.audioguide.domain.service.LocationService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -40,25 +41,32 @@ class MainViewModel @Inject constructor(
     private var currentLocation: Location? = null
     private var currentAzimuth: Float = 0f
 
+    private var isTrackingStarted = false
+
     init {
-        viewModelScope.launch {
-            // 1. ДАЕМ БАЗЕ ДАННЫХ ЗАГРУЗИТЬСЯ (ждем 2 секунды)
-            Log.d(TAG, "Ожидание инициализации базы данных...")
-            delay(2000L)
+        loadInitialData()
+    }
 
-            // 2. Запускаем сбор данных от датчиков
-            startLocationTracking()
-            startCompassTracking()
+    fun startTracking() {
+        if (isTrackingStarted) return
+        isTrackingStarted = true
 
-            // 3. Запускаем таймер проверки (раз в 1 секунду)
-            startPeriodicChecking()
-        }
+        startLocationTracking()
+        startCompassTracking()
+        startPeriodicChecking()
     }
 
     private fun startLocationTracking() {
         locationService.getLocation()
             .onEach { location ->
                 currentLocation = location // Просто обновляем переменную
+            }
+            .catch { e ->
+                isTrackingStarted = false
+                Log.e(TAG, "Ошибка GPS", e)
+                _uiState.value = _uiState.value.copy(
+                    statusMessage = "Ошибка GPS: ${e.message}"
+                )
             }
             .launchIn(viewModelScope)
     }
@@ -68,6 +76,9 @@ class MainViewModel @Inject constructor(
             .onEach { azimuth ->
                 currentAzimuth = azimuth // Просто обновляем переменную
                 _uiState.value = _uiState.value.copy(arrowAngle = azimuth)
+            }
+            .catch { e ->
+                Log.e(TAG, "Ошибка компаса", e)
             }
             .launchIn(viewModelScope)
     }
@@ -90,7 +101,7 @@ class MainViewModel @Inject constructor(
         // 1. Достаем все объекты из базы
         val allSights = repository.getAll()
 
-        // Если база все еще пуста (вдруг не успила), просто ждем следующего тика
+        // Если база все еще пуста (вдруг не успела), просто ждем следующего тика
         if (allSights.isEmpty()) {
             Log.d(TAG, "База данных пуста, ждем загрузки...")
             return
@@ -155,28 +166,31 @@ class MainViewModel @Inject constructor(
     // обновляем метод для загрузки с сервера
     fun reloadSightsFromServer() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, message = "")
-            try {
-                repository.refreshFromServer()
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Данные обновлены"
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Сохраняем имеющийся кэш, показываем ошибку
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Ошибка обновления: ${e.message}"
-                )
-            }
+            _uiState.value = _uiState.value.copy(isLoading = true, message = "Загрузка с сервера...")
+            repository.refreshFromServer()
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        message = "Данные обновлены"
+                    )
+                }
+                .onFailure { e ->
+                    // Сохраняем имеющийся кэш, показываем ошибку
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        message = "Ошибка обновления: ${e.message}"
+                    )
+                }
         }
+    }
+
+    fun clearMessage() {
+        _uiState.value = _uiState.value.copy(message = null)
     }
 
     fun reloadSightsFromSource() {
         viewModelScope.launch {
-            repository.replaceAll(sights)          // Запись в базу данных
+            repository.replaceAll(sights) // Запись в базу данных
         }
     }
 }
