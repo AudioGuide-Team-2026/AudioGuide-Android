@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface SightDao {
@@ -14,18 +15,17 @@ interface SightDao {
     suspend fun insertAll(sights: List<SightEntity>)
 
     @Query("SELECT * FROM sights")
+    fun observeAll(): Flow<List<SightEntity>>
+
+    @Query("SELECT * FROM sights")
     suspend fun getAll(): List<SightEntity>
 
     @Query("DELETE FROM sights")
     suspend fun deleteAll()
 
-    @Query("DELETE FROM sqlite_sequence WHERE name = 'sights'")
-    suspend fun resetSequence()
-
     @Transaction
     suspend fun replaceAll(sights: List<SightEntity>) {
         deleteAll()
-        resetSequence()
         insertAll(sights)
     }
 }

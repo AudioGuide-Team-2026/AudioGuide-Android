@@ -1,6 +1,6 @@
 package com.project.audioguide.data.database
 
-import com.project.audioguide.domain.service.models.Location
+import com.project.audioguide.domain.model.Location
 
 val sights = listOf(
     SightEntity(address = "Кронверкский пр., 49", location = Location(59.956363, 30.310011), name="Главный корпус ИТМО", description = "..."),

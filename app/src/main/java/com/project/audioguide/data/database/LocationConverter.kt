@@ -1,7 +1,7 @@
 package com.project.audioguide.data.database
 
 import androidx.room.TypeConverter
-import com.project.audioguide.domain.service.models.Location
+import com.project.audioguide.domain.model.Location
 
 class LocationConverter {
     @TypeConverter
@@ -12,8 +12,8 @@ class LocationConverter {
     @TypeConverter
     fun toLocation(data: String): Location {
         val parts = data.split(",")
-        val latitude = parts[0].toDouble()
-        val longitude = parts[1].toDouble()
+        val latitude = parts[0].trim().toDouble()
+        val longitude = parts[1].trim().toDouble()
         return Location(latitude, longitude)
     }
 }

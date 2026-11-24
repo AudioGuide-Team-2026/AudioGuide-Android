@@ -1,22 +1,19 @@
 package com.project.audioguide.ui
 
 import android.Manifest
-import android.util.Log
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import com.project.audioguide.data.CompassService
-import com.project.audioguide.data.LocationService
 import androidx.lifecycle.repeatOnLifecycle
 import com.project.audioguide.databinding.ActivityMainBinding
 import com.project.audioguide.ui.main.MainViewModel
-import com.project.audioguide.data.database.DatabaseInitializer
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -25,13 +22,6 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
     private lateinit var binding: ActivityMainBinding
 
-    // --- Сервисы ---
-    private lateinit var locationService: LocationService
-    private lateinit var compassService: CompassService
-    private val tag = "MainActivity"
-    @Inject
-    lateinit var initializer: DatabaseInitializer
-
     // Лаунчер для запроса разрешений GPS
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -39,7 +29,9 @@ class MainActivity : AppCompatActivity() {
         val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
-        if (!granted) {
+        if (granted) {
+            viewModel.startTracking()
+        } else {
             Toast.makeText(this, "GPS недоступен без разрешения", Toast.LENGTH_SHORT).show()
         }
     }
@@ -49,56 +41,71 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // изначальная загрузка данных из файла sights.kt
-        lifecycleScope.launch {
-            viewModel.loadInitialData()
-        }
-
-        locationService = LocationService(this)
-        compassService = CompassService(this)
-
-        // Проверяем разрешения для GPS при старте
-        if (!locationService.hasPermission()) {
-            requestPermissionLauncher.launch(locationService.requiredPermissions())
-        }
         // при нажатии на кнопку в бд загружаются данные с сервера
         binding.btnReloadData.setOnClickListener {
             viewModel.reloadSightsFromServer()
-            Toast.makeText(this, "Данные обновлены", Toast.LENGTH_SHORT).show()
+        }
+
+        observeViewModel()
+        ensureLocationPermissionAndStart()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Если пользователь выдал разрешение в настройках и вернулся в приложение
+        if (hasLocationPermission()) {
+            viewModel.startTracking()
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-
-        // Включаем компас при возвращении на экран
-        compassService.start { azimuth ->
-            Log.d(tag, "Компас: %.1f°".format(azimuth))
-        // Запрашиваем разрешения, если их нет
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissionLauncher.launch(arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ))
-        }
-
-        // СЛУШАЕМ ЧТО НАСЧИТАЛ VIEWMODEL И ПОКАЗЫВАЕМ НА ЭКРАНЕ
+    // СЛУШАЕМ ЧТО НАСЧИТАЛ VIEWMODEL И ПОКАЗЫВАЕМ НА ЭКРАНЕ
+    private fun observeViewModel() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.uiState.collect { state ->
-                    // Выводим статус (Поиск... / Ничего нет / Рядом есть...)
-                    binding.tvInfo.text = state.statusMessage
-                    
-                    // Если нашли объект, добавляем его описание
-                    state.detectedSight?.let { sight ->
-                        binding.tvInfo.append("\n\n${sight.description}")
+                launch {
+                    viewModel.uiState.collect { state ->
+                        binding.btnReloadData.isEnabled = !state.isLoading
+                        binding.tvHello.text = "Азимут: %.1f°".format(state.arrowAngle)
+
+                        // Выводим статус (Поиск... / Ничего нет / Рядом есть...)
+                        binding.tvInfo.text = state.statusMessage
+
+                        // Если нашли объект, добавляем его описание
+                        state.detectedSight?.let { sight ->
+                            binding.tvInfo.append("\n\n${sight.description}")
+                        }
+                    }
+                }
+                launch {
+                    viewModel.events.collect { message ->
+                        Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
         }
     }
 
-    override fun onResume() {
-        super.onResume()
+    // Проверяем разрешения для GPS при старте
+    private fun ensureLocationPermissionAndStart() {
+        if (hasLocationPermission()) {
+            viewModel.startTracking()
+        } else {
+            requestPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        return fine || coarse
     }
 }
