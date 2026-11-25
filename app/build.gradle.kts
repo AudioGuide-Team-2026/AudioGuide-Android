@@ -35,6 +35,11 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    testOptions {
+        // Чтобы android.util.Log не падал в обычных unit-тестах
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 
@@ -76,6 +81,7 @@ dependencies {
 
     // Tests
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 
