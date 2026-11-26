@@ -17,7 +17,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.project.audioguide.HiltTestRunner"
     }
 
     buildTypes {
@@ -34,6 +34,11 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    testOptions {
+        // Чтобы android.util.Log не падал в обычных unit-тестах
+        unitTests.isReturnDefaultValues = true
     }
 }
 
@@ -76,7 +81,13 @@ dependencies {
 
     // Tests
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:rules:1.7.0")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.60.1")
+    kspAndroidTest("com.google.dagger:hilt-compiler:2.60.1")
 
 }
