@@ -1,5 +1,6 @@
 package com.project.audioguide.ui
 
+import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
@@ -22,6 +23,7 @@ import kotlinx.coroutines.CompletableDeferred
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.not
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -168,6 +170,57 @@ class MainScreenTest {
             gate.complete(Unit)
 
             onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+        }
+    }
+
+    // Нефункциональное требование: информация об объекте или его отсутствии
+    // должна отобразиться не позже чем через 3 секунды
+
+    private val maxDisplayTimeMs = 3000L
+
+    /** Ждет, пока на экране появится текст, и возвращает, сколько миллисекунд это заняло. */
+    private fun waitForInfo(text: String, timeoutMs: Long): Long {
+        val start = SystemClock.elapsedRealtime()
+        while (true) {
+            try {
+                assertInfo(text)
+                return SystemClock.elapsedRealtime() - start
+            } catch (e: Throwable) {
+                if (SystemClock.elapsedRealtime() - start > timeoutMs) throw e
+                Thread.sleep(50)
+            }
+        }
+    }
+
+    @Test
+    fun sightInfo_isShownWithinThreeSeconds() {
+        location.location.value = nearUser
+        compass.azimuth.value = 120f
+
+        launchScreen().use {
+            assertInfo("Повернитесь к нему")
+
+            // "Наводим" устройство на объект
+            compass.azimuth.value = 0f
+            val elapsed = waitForInfo("Вы смотрите на: Главный корпус ИТМО", maxDisplayTimeMs)
+
+            assertTrue("Информация появилась за $elapsed мс, ожидалось меньше 3000", elapsed < maxDisplayTimeMs)
+        }
+    }
+
+    @Test
+    fun noSightInfo_isShownWithinThreeSeconds() {
+        location.location.value = nearUser
+        compass.azimuth.value = 0f
+
+        launchScreen().use {
+            assertInfo("Вы смотрите на: Главный корпус ИТМО")
+
+            // Уходим далеко от объекта
+            location.location.value = farUser
+            val elapsed = waitForInfo("В радиусе 50 метров ничего нет.", maxDisplayTimeMs)
+
+            assertTrue("Сообщение появилось за $elapsed мс, ожидалось меньше 3000", elapsed < maxDisplayTimeMs)
         }
     }
 }
