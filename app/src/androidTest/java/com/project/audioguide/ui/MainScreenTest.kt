@@ -1,0 +1,173 @@
+package com.project.audioguide.ui
+
+import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isEnabled
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.espresso.matcher.ViewMatchers.withText
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
+import com.project.audioguide.FakeCompassService
+import com.project.audioguide.FakeLocationService
+import com.project.audioguide.FakeSightRepository
+import com.project.audioguide.R
+import com.project.audioguide.domain.model.Location
+import com.project.audioguide.domain.model.Sight
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.CompletableDeferred
+import org.hamcrest.CoreMatchers.containsString
+import org.hamcrest.CoreMatchers.not
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import javax.inject.Inject
+
+@HiltAndroidTest
+@RunWith(AndroidJUnit4::class)
+class MainScreenTest {
+
+    @get:Rule(order = 0)
+    val hiltRule = HiltAndroidRule(this)
+
+    // Чтобы на эмуляторе не появлялся системный диалог запроса GPS
+    @get:Rule(order = 1)
+    val permissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+        android.Manifest.permission.ACCESS_FINE_LOCATION,
+        android.Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    @Inject lateinit var repository: FakeSightRepository
+    @Inject lateinit var location: FakeLocationService
+    @Inject lateinit var compass: FakeCompassService
+
+    private val itmoMain = Sight(
+        id = 1,
+        address = "Кронверкский пр., 49",
+        location = Location(59.956363, 30.310011),
+        name = "Главный корпус ИТМО",
+        description = "Описание главного корпуса"
+    )
+
+    // 20 метров южнее объекта: азимут на объект примерно 0 градусов
+    private val nearUser = Location(59.956183, 30.310011)
+    // Примерно 3.6 км от объекта
+    private val farUser = Location(59.927288, 30.338353)
+
+    @Before
+    fun setUp() {
+        hiltRule.inject()
+        repository.sights.value = listOf(itmoMain)
+    }
+
+    private fun launchScreen() = ActivityScenario.launch(MainActivity::class.java)
+
+    private fun assertInfo(text: String) {
+        onView(withId(R.id.tvInfo)).check(matches(withText(containsString(text))))
+    }
+
+    @Test
+    fun screen_showsMainElements() {
+        launchScreen().use {
+            onView(withId(R.id.tvHello)).check(matches(isDisplayed()))
+            onView(withId(R.id.tvInfo)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnReloadData)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnReloadData)).check(matches(withText("Обновить данные")))
+            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+        }
+    }
+
+    @Test
+    fun lookingAtSight_showsNameAndDescription() {
+        location.location.value = nearUser
+        compass.azimuth.value = 355f
+
+        launchScreen().use {
+            assertInfo("Вы смотрите на: Главный корпус ИТМО")
+            assertInfo("Описание главного корпуса")
+        }
+    }
+
+    @Test
+    fun lookingAtSight_showsAzimuth() {
+        location.location.value = nearUser
+        compass.azimuth.value = 355f
+
+        launchScreen().use {
+            onView(withId(R.id.tvHello)).check(matches(withText(containsString("Азимут: 355"))))
+        }
+    }
+
+    @Test
+    fun nearButNotLooking_asksToTurn() {
+        location.location.value = nearUser
+        compass.azimuth.value = 120f
+
+        launchScreen().use {
+            assertInfo("Повернитесь к нему")
+            onView(withId(R.id.tvInfo)).check(matches(withText(not(containsString("Описание")))))
+        }
+    }
+
+    @Test
+    fun farAway_showsNothingNearby() {
+        location.location.value = farUser
+
+        launchScreen().use {
+            assertInfo("В радиусе 50 метров ничего нет.")
+        }
+    }
+
+    @Test
+    fun emptyDatabase_showsEmptyBaseMessage() {
+        repository.sights.value = emptyList()
+        location.location.value = nearUser
+
+        launchScreen().use {
+            assertInfo("База объектов пуста")
+        }
+    }
+
+    @Test
+    fun turningToSight_updatesScreen() {
+        location.location.value = nearUser
+        compass.azimuth.value = 120f
+
+        launchScreen().use {
+            assertInfo("Повернитесь к нему")
+
+            compass.azimuth.value = 0f
+
+            assertInfo("Вы смотрите на: Главный корпус ИТМО")
+        }
+    }
+
+    @Test
+    fun reloadButton_click_requestsDataFromServer() {
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+
+            assertEquals(1, repository.refreshCalls)
+        }
+    }
+
+    @Test
+    fun reloadButton_isDisabledWhileLoading() {
+        val gate = CompletableDeferred<Unit>()
+        repository.refreshGate = gate
+
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+            onView(withId(R.id.btnReloadData)).check(matches(not(isEnabled())))
+
+            gate.complete(Unit)
+
+            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+        }
+    }
+}
