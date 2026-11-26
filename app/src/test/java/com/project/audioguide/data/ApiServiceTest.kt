@@ -16,6 +16,7 @@ import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
+import kotlin.system.measureTimeMillis
 
 /**
  * Проверка работы с сервером без реального бэкенда:
@@ -178,5 +179,24 @@ class ApiServiceTest {
 
         assertTrue(result.isFailure)
         assertEquals(before, repository.getAll())
+    }
+
+    // Нефункциональное требование: обновление данных не дольше 5 секунд на каждую запись
+
+    @Test
+    fun refreshFromServer_takesLessThanFiveSecondsPerRecord() = runTest {
+        val count = 100
+        val json = (1..count).joinToString(prefix = "[", postfix = "]", separator = ",") { i ->
+            """{"id":"$i","address":"Адрес $i","location":{"latitude":59.9,"longitude":30.3},""" +
+                """"name":"Объект $i","description":"Описание $i"}"""
+        }
+        enqueueJson(json)
+        val repository = SightRepositoryImpl(FakeSightDao(), api)
+
+        val elapsed = measureTimeMillis { repository.refreshFromServer() }
+
+        assertEquals(count, repository.getAll().size)
+        val perRecord = elapsed.toDouble() / count
+        assertTrue("На запись ушло $perRecord мс, ожидалось меньше 5000", perRecord < 5000)
     }
 }

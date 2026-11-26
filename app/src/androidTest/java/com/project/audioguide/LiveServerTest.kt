@@ -4,6 +4,7 @@ package com.project.audioguide
 import com.project.audioguide.data.remote.ApiService
 import com.project.audioguide.data.remote.response.SightEntityResponse
 import android.os.Build
+import android.os.SystemClock
 import androidx.test.rule.GrantPermissionRule
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
@@ -65,5 +66,17 @@ class LiveServerTest {
             assertTrue("Некорректная широта у ${place.name}", place.location.latitude in -90.0..90.0)
             assertTrue("Некорректная долгота у ${place.name}", place.location.longitude in -180.0..180.0)
         }
+    }
+
+    // Нефункциональное требование: обновление данных не дольше 5 секунд на каждую запись
+    @Test
+    fun server_updateTakesLessThanFiveSecondsPerRecord() {
+        val start = SystemClock.elapsedRealtime()
+        val places = loadOrSkip()
+        val elapsed = SystemClock.elapsedRealtime() - start
+
+        assertTrue("Сервер вернул пустой список мест", places.isNotEmpty())
+        val perRecord = elapsed.toDouble() / places.size
+        assertTrue("На запись ушло $perRecord мс, ожидалось меньше 5000", perRecord < 5000)
     }
 }
