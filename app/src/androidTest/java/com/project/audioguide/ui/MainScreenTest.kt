@@ -3,6 +3,7 @@ package com.project.audioguide.ui
 import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
@@ -19,7 +20,6 @@ import com.project.audioguide.domain.model.Location
 import com.project.audioguide.domain.model.Sight
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
-import kotlinx.coroutines.CompletableDeferred
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.not
 import org.junit.Assert.assertEquals
@@ -76,11 +76,14 @@ class MainScreenTest {
     @Test
     fun screen_showsMainElements() {
         launchScreen().use {
-            onView(withId(R.id.tvHello)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnListen)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnPause)).check(matches(isDisplayed()))
             onView(withId(R.id.tvInfo)).check(matches(isDisplayed()))
-            onView(withId(R.id.btnReloadData)).check(matches(isDisplayed()))
-            onView(withId(R.id.btnReloadData)).check(matches(withText("Обновить данные")))
-            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+            onView(withId(R.id.btnDetails)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnDetails)).check(matches(withText(R.string.guide_details)))
+            onView(withId(R.id.btnDetails)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnListen)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnPause)).check(matches(not(isEnabled())))
         }
     }
 
@@ -90,18 +93,18 @@ class MainScreenTest {
         compass.azimuth.value = 355f
 
         launchScreen().use {
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
-            assertInfo("Описание главного корпуса")
-        }
-    }
+            assertInfo("Главный корпус ИТМО")
+            onView(withId(R.id.btnListen)).check(matches(isEnabled()))
+            onView(withId(R.id.btnPause)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnDetails)).perform(click())
+            assertEquals(0, repository.refreshCalls)
+            onView(withId(R.id.sightName)).check(matches(withText(itmoMain.name)))
+            onView(withId(R.id.sightDescription)).check(matches(withText(itmoMain.description)))
 
-    @Test
-    fun lookingAtSight_showsAzimuth() {
-        location.location.value = nearUser
-        compass.azimuth.value = 355f
-
-        launchScreen().use {
-            onView(withId(R.id.tvHello)).check(matches(withText(containsString("Азимут: 355"))))
+            compass.azimuth.value = 120f
+            onView(withId(R.id.sightName)).check(matches(withText(itmoMain.name)))
+            pressBack()
+            assertInfo("Повернитесь к нему")
         }
     }
 
@@ -145,31 +148,7 @@ class MainScreenTest {
 
             compass.azimuth.value = 0f
 
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
-        }
-    }
-
-    @Test
-    fun reloadButton_click_requestsDataFromServer() {
-        launchScreen().use {
-            onView(withId(R.id.btnReloadData)).perform(click())
-
-            assertEquals(1, repository.refreshCalls)
-        }
-    }
-
-    @Test
-    fun reloadButton_isDisabledWhileLoading() {
-        val gate = CompletableDeferred<Unit>()
-        repository.refreshGate = gate
-
-        launchScreen().use {
-            onView(withId(R.id.btnReloadData)).perform(click())
-            onView(withId(R.id.btnReloadData)).check(matches(not(isEnabled())))
-
-            gate.complete(Unit)
-
-            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+            assertInfo("Главный корпус ИТМО")
         }
     }
 
@@ -202,7 +181,7 @@ class MainScreenTest {
 
             // "Наводим" устройство на объект
             compass.azimuth.value = 0f
-            val elapsed = waitForInfo("Вы смотрите на: Главный корпус ИТМО", maxDisplayTimeMs)
+            val elapsed = waitForInfo("Главный корпус ИТМО", maxDisplayTimeMs)
 
             assertTrue("Информация появилась за $elapsed мс, ожидалось меньше 3000", elapsed < maxDisplayTimeMs)
         }
@@ -214,7 +193,7 @@ class MainScreenTest {
         compass.azimuth.value = 0f
 
         launchScreen().use {
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
+            assertInfo("Главный корпус ИТМО")
 
             // Уходим далеко от объекта
             location.location.value = farUser
