@@ -1,12 +1,18 @@
 package com.project.audioguide.ui
 
+import android.graphics.Rect
 import android.os.SystemClock
+import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.swipeUp
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isEnabled
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -76,10 +82,40 @@ class MainScreenTest {
     @Test
     fun screen_showsMainElements() {
         launchScreen().use {
-            onView(withId(R.id.tvHello)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnListen)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnPause)).check(matches(isDisplayed()))
             onView(withId(R.id.tvInfo)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnDetails)).check(matches(isDisplayed()))
             onView(withId(R.id.btnReloadData)).check(matches(isDisplayed()))
-            onView(withId(R.id.btnReloadData)).check(matches(withText("Обновить данные")))
+            onView(withId(R.id.btnReloadData)).check(matches(withText(R.string.guide_reload_data)))
+            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+            onView(withId(R.id.btnDetails)).check(matches(withText(R.string.guide_details)))
+            onView(withId(R.id.btnDetails)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnListen)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnPause)).check(matches(not(isEnabled())))
+        }
+    }
+
+    @Test
+    fun reloadButton_click_requestsDataFromServer() {
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+
+            assertEquals(1, repository.refreshCalls)
+        }
+    }
+
+    @Test
+    fun reloadButton_isDisabledWhileLoading() {
+        val gate = CompletableDeferred<Unit>()
+        repository.refreshGate = gate
+
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+            onView(withId(R.id.btnReloadData)).check(matches(not(isEnabled())))
+
+            gate.complete(Unit)
+
             onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
         }
     }
@@ -90,18 +126,53 @@ class MainScreenTest {
         compass.azimuth.value = 355f
 
         launchScreen().use {
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
-            assertInfo("Описание главного корпуса")
+            assertInfo("Главный корпус ИТМО")
+            onView(withId(R.id.btnListen)).check(matches(isEnabled()))
+            onView(withId(R.id.btnPause)).check(matches(not(isEnabled())))
+            onView(withId(R.id.btnDetails)).perform(click())
+            assertEquals(0, repository.refreshCalls)
+            onView(withId(R.id.sightName)).check(matches(withText(itmoMain.name)))
+            onView(withId(R.id.sightDescription)).check(matches(withText(itmoMain.description)))
+
+            compass.azimuth.value = 120f
+            onView(withId(R.id.sightName)).check(matches(withText(itmoMain.name)))
+            pressBack()
+            assertInfo("Повернитесь к нему")
         }
     }
 
     @Test
-    fun lookingAtSight_showsAzimuth() {
+    fun longDescription_scrollsToLastLineAfterExpansion() {
+        val description = "Длинная строка описания.\n".repeat(65) + "Последняя строка."
+        repository.sights.value = listOf(itmoMain.copy(description = description))
         location.location.value = nearUser
         compass.azimuth.value = 355f
 
-        launchScreen().use {
-            onView(withId(R.id.tvHello)).check(matches(withText(containsString("Азимут: 355"))))
+        launchScreen().use { scenario ->
+            onView(withId(R.id.btnDetails)).perform(click())
+            onView(withId(R.id.toggleDescription)).perform(click())
+
+            onView(withId(R.id.details)).check(matches(isCompletelyDisplayed()))
+            onView(withId(R.id.toggleDescription)).check(matches(not(isDisplayed())))
+
+            repeat(6) {
+                onView(withId(R.id.details)).perform(swipeUp())
+            }
+
+            onView(withId(R.id.toggleDescription)).check(matches(isCompletelyDisplayed()))
+                .check(matches(withContentDescription(R.string.guide_collapse_description)))
+            scenario.onActivity { activity ->
+                val descriptionView = activity.findViewById<TextView>(R.id.sightDescription)
+                val layout = checkNotNull(descriptionView.layout)
+                val lastLine = layout.lineCount - 1
+                val visible = Rect()
+                assertEquals(description.length, layout.getLineEnd(lastLine))
+                assertEquals(0, layout.getEllipsisCount(lastLine))
+                assertTrue(descriptionView.getLocalVisibleRect(visible))
+                val lastLineTop = descriptionView.totalPaddingTop + layout.getLineTop(lastLine)
+                val lastLineBottom = descriptionView.totalPaddingTop + layout.getLineBottom(lastLine)
+                assertTrue(visible.top <= lastLineTop && visible.bottom >= lastLineBottom)
+            }
         }
     }
 
@@ -145,31 +216,7 @@ class MainScreenTest {
 
             compass.azimuth.value = 0f
 
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
-        }
-    }
-
-    @Test
-    fun reloadButton_click_requestsDataFromServer() {
-        launchScreen().use {
-            onView(withId(R.id.btnReloadData)).perform(click())
-
-            assertEquals(1, repository.refreshCalls)
-        }
-    }
-
-    @Test
-    fun reloadButton_isDisabledWhileLoading() {
-        val gate = CompletableDeferred<Unit>()
-        repository.refreshGate = gate
-
-        launchScreen().use {
-            onView(withId(R.id.btnReloadData)).perform(click())
-            onView(withId(R.id.btnReloadData)).check(matches(not(isEnabled())))
-
-            gate.complete(Unit)
-
-            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
+            assertInfo("Главный корпус ИТМО")
         }
     }
 
@@ -202,7 +249,7 @@ class MainScreenTest {
 
             // "Наводим" устройство на объект
             compass.azimuth.value = 0f
-            val elapsed = waitForInfo("Вы смотрите на: Главный корпус ИТМО", maxDisplayTimeMs)
+            val elapsed = waitForInfo("Главный корпус ИТМО", maxDisplayTimeMs)
 
             assertTrue("Информация появилась за $elapsed мс, ожидалось меньше 3000", elapsed < maxDisplayTimeMs)
         }
@@ -214,7 +261,7 @@ class MainScreenTest {
         compass.azimuth.value = 0f
 
         launchScreen().use {
-            assertInfo("Вы смотрите на: Главный корпус ИТМО")
+            assertInfo("Главный корпус ИТМО")
 
             // Уходим далеко от объекта
             location.location.value = farUser
