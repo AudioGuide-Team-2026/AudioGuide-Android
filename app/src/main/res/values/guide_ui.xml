@@ -3,10 +3,13 @@
     <color name="guide_card">#4C3124</color>
     <color name="guide_ink">#15110D</color>
     <color name="guide_text">#FFF7EB</color>
+    <dimen name="guide_action_text_size">20sp</dimen>
+    <dimen name="guide_action_icon_size">26dp</dimen>
     <string name="guide_searching">Поиск...</string>
     <string name="guide_listen">Слушать аудио</string>
     <string name="guide_pause">Пауза</string>
     <string name="guide_details">Подробная информация</string>
+    <string name="guide_reload_data">Загрузить данные</string>
     <string name="guide_audio_error">Не удалось воспроизвести озвучку. Попробуйте ещё раз.</string>
     <string name="guide_audio_network_error">Сетевой голос недоступен. Попробуйте ещё раз или установите русский голос в настройках синтеза речи.</string>
     <string name="guide_audio_language_unavailable">Русский голос недоступен. Установите его в настройках синтеза речи.</string>
@@ -15,6 +18,11 @@
     <style name="Widget.AudioGuide.Action" parent="Widget.Material3.Button">
         <item name="android:fontFamily">serif</item>
         <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">@dimen/guide_action_text_size</item>
+        <item name="android:minHeight">56dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="iconSize">@dimen/guide_action_icon_size</item>
         <item name="android:textColor">@color/guide_text</item>
         <item name="android:letterSpacing">0</item>
         <item name="android:insetLeft">0dp</item>

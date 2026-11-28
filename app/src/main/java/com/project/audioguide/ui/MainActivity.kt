@@ -102,6 +102,9 @@ class MainActivity : AppCompatActivity() {
                 openDetails(sight.name, sight.description)
             }
         }
+        binding.btnReloadData.setOnClickListener {
+            viewModel.reloadSightsFromServer()
+        }
         binding.toggleDescription.setOnClickListener {
             setDescriptionExpanded(!descriptionExpanded)
         }
@@ -180,6 +183,7 @@ class MainActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.uiState.collect { state ->
+                        binding.btnReloadData.isEnabled = !state.isLoading
                         val sight = state.detectedSight
                         val title = sight?.name ?: state.statusMessage
                         if (binding.tvInfo.text != title) binding.tvInfo.text = title

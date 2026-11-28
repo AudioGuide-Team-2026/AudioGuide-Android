@@ -50,6 +50,7 @@
             android:layout_marginBottom="64dp"
             android:gravity="center"
             android:orientation="vertical"
+            app:layout_constraintWidth_max="320dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
@@ -57,72 +58,74 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnListen"
                 style="@style/Widget.AudioGuide.Action"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="79dp"
                 android:text="@string/guide_listen"
-                android:textSize="29sp"
-                app:icon="@drawable/guide_listen"
-                app:iconSize="40dp" />
+                app:icon="@drawable/guide_listen" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPause"
                 style="@style/Widget.AudioGuide.Action"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:minHeight="79dp"
                 android:text="@string/guide_pause"
-                android:textSize="29sp"
                 app:icon="@drawable/guide_pause" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnDetails"
                 style="@style/Widget.AudioGuide.Action"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:minHeight="48dp"
+                android:layout_marginTop="4dp"
                 android:text="@string/guide_details"
-                android:textSize="18sp"
                 app:icon="@drawable/guide_info" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReloadData"
+                style="@style/Widget.AudioGuide.Action"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/guide_reload_data" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/detailsTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.18" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/details"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginHorizontal="44dp"
-        android:layout_marginVertical="32dp"
-        android:fillViewport="true"
+        android:layout_marginHorizontal="28dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="32dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/detailsTop"
+        app:layout_constraintWidth_max="320dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
             android:orientation="vertical">
 
-            <TextView
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/sightName"
+                style="@style/Widget.AudioGuide.Action"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="6dp"
                 android:accessibilityHeading="true"
-                android:background="@drawable/guide_card"
-                android:drawableStart="@drawable/guide_info"
-                android:drawablePadding="6dp"
-                android:fontFamily="serif"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="7dp"
-                android:paddingVertical="3dp"
-                android:textColor="@color/guide_text"
-                android:textSize="19sp" />
+                android:clickable="false"
+                android:focusable="false"
+                app:icon="@drawable/guide_info" />
 
             <LinearLayout
                 android:layout_width="match_parent"

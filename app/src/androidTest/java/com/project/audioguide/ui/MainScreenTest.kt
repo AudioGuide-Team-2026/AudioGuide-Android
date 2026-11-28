@@ -1,13 +1,18 @@
 package com.project.audioguide.ui
 
+import android.graphics.Rect
 import android.os.SystemClock
+import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.swipeUp
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isEnabled
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,6 +25,7 @@ import com.project.audioguide.domain.model.Location
 import com.project.audioguide.domain.model.Sight
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
+import kotlinx.coroutines.CompletableDeferred
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.not
 import org.junit.Assert.assertEquals
@@ -80,10 +86,37 @@ class MainScreenTest {
             onView(withId(R.id.btnPause)).check(matches(isDisplayed()))
             onView(withId(R.id.tvInfo)).check(matches(isDisplayed()))
             onView(withId(R.id.btnDetails)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnReloadData)).check(matches(isDisplayed()))
+            onView(withId(R.id.btnReloadData)).check(matches(withText(R.string.guide_reload_data)))
+            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
             onView(withId(R.id.btnDetails)).check(matches(withText(R.string.guide_details)))
             onView(withId(R.id.btnDetails)).check(matches(not(isEnabled())))
             onView(withId(R.id.btnListen)).check(matches(not(isEnabled())))
             onView(withId(R.id.btnPause)).check(matches(not(isEnabled())))
+        }
+    }
+
+    @Test
+    fun reloadButton_click_requestsDataFromServer() {
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+
+            assertEquals(1, repository.refreshCalls)
+        }
+    }
+
+    @Test
+    fun reloadButton_isDisabledWhileLoading() {
+        val gate = CompletableDeferred<Unit>()
+        repository.refreshGate = gate
+
+        launchScreen().use {
+            onView(withId(R.id.btnReloadData)).perform(click())
+            onView(withId(R.id.btnReloadData)).check(matches(not(isEnabled())))
+
+            gate.complete(Unit)
+
+            onView(withId(R.id.btnReloadData)).check(matches(isEnabled()))
         }
     }
 
@@ -105,6 +138,41 @@ class MainScreenTest {
             onView(withId(R.id.sightName)).check(matches(withText(itmoMain.name)))
             pressBack()
             assertInfo("Повернитесь к нему")
+        }
+    }
+
+    @Test
+    fun longDescription_scrollsToLastLineAfterExpansion() {
+        val description = "Длинная строка описания.\n".repeat(65) + "Последняя строка."
+        repository.sights.value = listOf(itmoMain.copy(description = description))
+        location.location.value = nearUser
+        compass.azimuth.value = 355f
+
+        launchScreen().use { scenario ->
+            onView(withId(R.id.btnDetails)).perform(click())
+            onView(withId(R.id.toggleDescription)).perform(click())
+
+            onView(withId(R.id.details)).check(matches(isCompletelyDisplayed()))
+            onView(withId(R.id.toggleDescription)).check(matches(not(isDisplayed())))
+
+            repeat(6) {
+                onView(withId(R.id.details)).perform(swipeUp())
+            }
+
+            onView(withId(R.id.toggleDescription)).check(matches(isCompletelyDisplayed()))
+                .check(matches(withContentDescription(R.string.guide_collapse_description)))
+            scenario.onActivity { activity ->
+                val descriptionView = activity.findViewById<TextView>(R.id.sightDescription)
+                val layout = checkNotNull(descriptionView.layout)
+                val lastLine = layout.lineCount - 1
+                val visible = Rect()
+                assertEquals(description.length, layout.getLineEnd(lastLine))
+                assertEquals(0, layout.getEllipsisCount(lastLine))
+                assertTrue(descriptionView.getLocalVisibleRect(visible))
+                val lastLineTop = descriptionView.totalPaddingTop + layout.getLineTop(lastLine)
+                val lastLineBottom = descriptionView.totalPaddingTop + layout.getLineBottom(lastLine)
+                assertTrue(visible.top <= lastLineTop && visible.bottom >= lastLineBottom)
+            }
         }
     }
 

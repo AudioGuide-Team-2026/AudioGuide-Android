@@ -1,5 +1,6 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="30dp" android:height="30dp"
+    android:width="@dimen/guide_action_icon_size"
+    android:height="@dimen/guide_action_icon_size"
     android:viewportWidth="24" android:viewportHeight="24">
     <path android:fillColor="#EBD6B7" android:pathData="M12,0a12,12 0,1 0,0 24a12,12 0,1 0,0 -24z" />
     <path android:fillColor="#15110D" android:fillType="evenOdd" android:pathData="M12,5a7,7 0,1 0,0 14a7,7 0,1 0,0 -14z M12,6.5a5.5,5.5 0,1 1,0 11a5.5,5.5 0,1 1,0 -11z M11,8h2v2h-2z M11,11h2v5h-2z" />
